@@ -21,6 +21,12 @@ interface UseScrollDirectionOptions {
    *  direction anchor is reset when suppression ends. Useful for
    *  programmatic scrolls (e.g. outline click → scrollToEvent). */
   suppressRef?: React.RefObject<boolean>;
+  /** When true, `hidden` only flips false→true on downward scroll. Upward
+   *  scroll motion no longer reveals; once collapsed, the header stays
+   *  collapsed until the scroller actually reaches the top (scrollTop ≤ 0),
+   *  at which point the existing top-reveal path still fires. Default: false
+   *  (symmetric show/hide on direction changes). */
+  stayHiddenOnUpScroll?: boolean;
 }
 
 interface UseScrollDirectionResult {
@@ -65,6 +71,7 @@ export function useScrollDirection(
   const threshold = options?.threshold ?? 40;
   const transitionLockMs = options?.transitionLockMs ?? 250;
   const suppressRef = options?.suppressRef;
+  const stayHiddenOnUpScroll = options?.stayHiddenOnUpScroll ?? false;
 
   // Per-element anchor & last-direction tracking so multiple independent
   // scrollers don't cross-contaminate each other's threshold computations.
@@ -211,6 +218,11 @@ export function useScrollDirection(
         return;
       }
 
+      // Opt-in one-way mode: ignore upward scroll motion entirely so a
+      // collapsed header stays collapsed until the scroller hits the top
+      // (handled by the scrollTop <= 0 branch above).
+      if (stayHiddenOnUpScroll && direction === "up") return;
+
       const shouldHide = direction === "down" && scrollTop > 10;
       setHidden((prev) => {
         if (prev === shouldHide) return prev;
@@ -236,7 +248,7 @@ export function useScrollDirection(
         el.removeEventListener("scroll", handler);
       }
     };
-  }, [scrollEls, threshold, transitionLockMs, suppressRef]);
+  }, [scrollEls, threshold, transitionLockMs, suppressRef, stayHiddenOnUpScroll]);
 
   const resetAnchor = useCallback(
     (debounce?: boolean) => {

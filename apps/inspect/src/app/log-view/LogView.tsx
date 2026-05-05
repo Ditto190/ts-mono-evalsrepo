@@ -92,7 +92,9 @@ export const LogView: FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Object.keys(tabs).join(",")]);
 
-  const { hidden: titleCollapsed } = useScrollDirection(scrollRefs);
+  const { hidden: titleCollapsed } = useScrollDirection(scrollRefs, {
+    stayHiddenOnUpScroll: true,
+  });
 
   const selectedTab = useStore((state) => state.app.tabs.workspace);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);

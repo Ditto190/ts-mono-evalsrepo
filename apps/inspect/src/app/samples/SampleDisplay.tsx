@@ -480,6 +480,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // the user never sees the header re-animate or "re-appear".
   const { hidden: headroomHidden } = useScrollDirection(scrollRef, {
     threshold: 80,
+    stayHiddenOnUpScroll: true,
   });
   const [isHeaderSticky, setIsHeaderSticky] = useState(false);
   const handleHeaderStickyChange = useCallback((sticky: boolean) => {
