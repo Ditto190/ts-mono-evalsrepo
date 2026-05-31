@@ -15,6 +15,8 @@ import type {
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
+import { codexToolMarkdown } from "../../chat/tools/tool";
+
 // =============================================================================
 // Span Tree Types (internal)
 // =============================================================================
@@ -793,10 +795,17 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
         );
         // Spawned by a ToolEvent — explicit user-intended subagent.
         span.toolInvoked = true;
-        // Capture agent result from the spawning ToolEvent
+        // Capture agent result from the spawning ToolEvent. (Codex sub-agents
+        // are span-based — they don't reach this ToolEvent path — but apply the
+        // Codex reshape defensively so any tool-spawned Codex result is handled
+        // consistently rather than rendered as raw JSON.)
         const agentResult = extractToolEventResult(event.result);
         if (agentResult) {
-          span.agentResult = agentResult;
+          span.agentResult = codexResultText(
+            event.function,
+            event.result,
+            agentResult
+          );
         }
         return span;
       }
@@ -1562,6 +1571,25 @@ export function getSpanToolResult(span: TimelineSpan): string | undefined {
 }
 
 /**
+ * Reshape a Codex sub-agent tool result into nicer markdown when applicable
+ * (e.g. `spawn_agent`'s `{agent_id, nickname}` → a compact name line); falls
+ * back to the raw extracted text for non-Codex tools.
+ */
+function codexResultText(
+  fn: string | undefined,
+  content: unknown,
+  fallback: string
+): string {
+  if (fn) {
+    const markdown = codexToolMarkdown(fn, content);
+    if (markdown !== undefined) {
+      return markdown;
+    }
+  }
+  return fallback;
+}
+
+/**
  * Extract a string result from a ToolEvent result field.
  */
 function extractToolEventResult(result: unknown): string | undefined {
@@ -1610,7 +1638,11 @@ function extractAgentResults(parent: TimelineSpan): void {
       ) {
         const resultText = extractToolEventResult(sibling.event.result);
         if (resultText) {
-          item.agentResult = resultText;
+          item.agentResult = codexResultText(
+            sibling.event.function,
+            sibling.event.result,
+            resultText
+          );
         }
         break;
       }
@@ -1635,7 +1667,11 @@ function extractAgentResults(parent: TimelineSpan): void {
               ) {
                 const text = extractToolEventResult(msg.content);
                 if (text) {
-                  item.agentResult = text;
+                  item.agentResult = codexResultText(
+                    (msg as { function?: string }).function,
+                    msg.content,
+                    text
+                  );
                 }
               }
             }
