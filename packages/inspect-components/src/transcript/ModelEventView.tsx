@@ -74,6 +74,20 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const entries: Record<string, unknown> = { ...event.config };
   delete entries["max_connections"];
 
+  // Stop reason / refusal detail for the (primary) generated choice. `category`
+  // and `explanation` are only present on a refusal/content-filter stop.
+  const firstChoice = event.output?.choices?.[0];
+  const stopEntries: Record<string, unknown> = {};
+  if (firstChoice?.stop_reason) {
+    stopEntries["stop reason"] = firstChoice.stop_reason;
+  }
+  if (firstChoice?.stop_details?.category) {
+    stopEntries["category"] = firstChoice.stop_details.category;
+  }
+  if (firstChoice?.stop_details?.explanation) {
+    stopEntries["explanation"] = firstChoice.stop_details.explanation;
+  }
+
   // For any user messages which immediately preceded this model call, including a
   // panel and display those user messages (exclude tool_call messages as they
   // are already shown in the tool call above)
@@ -239,6 +253,15 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
               }}
             />
           ) : undefined}
+
+          {Object.keys(stopEntries).length > 0 && (
+            <EventSection
+              title="Stop Reason"
+              className={clsx(styles.tableSelection, styles.config)}
+            >
+              <MetaDataGrid entries={stopEntries} options={{ plain: true }} />
+            </EventSection>
+          )}
 
           {Object.keys(entries).length > 0 && (
             <EventSection
