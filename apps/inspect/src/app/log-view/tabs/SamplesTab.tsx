@@ -61,7 +61,7 @@ import { RunningNoSamples } from "./RunningNoSamples.tsx";
 interface SamplesTabExtraProps {
   showColumnSelector: boolean;
   setShowColumnSelector: (showing: boolean) => void;
-  columnButtonRef: RefObject<HTMLButtonElement | null>;
+  columnButtonEl: HTMLButtonElement | null;
 }
 
 // Individual hook for Samples tab
@@ -82,7 +82,8 @@ export const useSamplesTabConfig = (
   // Column-selector state lives here so the tools toolbar can host the
   // trigger button while the popover is rendered inside SamplesTab.
   const [showColumnSelector, setShowColumnSelector] = useState(false);
-  const columnButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [columnButtonEl, setColumnButtonEl] =
+    useState<HTMLButtonElement | null>(null);
   const handleToggleColumnSelector = useCallback(() => {
     setShowColumnSelector((p) => !p);
   }, []);
@@ -101,7 +102,7 @@ export const useSamplesTabConfig = (
         scrollRef,
         showColumnSelector,
         setShowColumnSelector,
-        columnButtonRef,
+        columnButtonEl,
       },
       tools: () =>
         !samplesDescriptor
@@ -122,7 +123,7 @@ export const useSamplesTabConfig = (
                 samplesAvailable && (
                   <NavbarButton
                     key="choose-columns"
-                    ref={columnButtonRef}
+                    ref={setColumnButtonEl}
                     label="Columns"
                     icon={ApplicationIcons.columns}
                     dropdown
@@ -132,11 +133,11 @@ export const useSamplesTabConfig = (
                 ),
               ],
     };
-    // `scrollRef`, `columnButtonRef`, and `setShowColumnSelector` are
-    // intentionally omitted — refs and React state setters have stable
-    // identity across renders, so including them only churns the memo
-    // without changing behavior. If `componentProps` ever gains a
-    // non-stable value, add it to the deps list.
+    // `scrollRef` and `setShowColumnSelector` are intentionally omitted —
+    // refs and React state setters have stable identity across renders, so
+    // including them only churns the memo without changing behavior. If
+    // `componentProps` ever gains a non-stable value, add it to the deps
+    // list.
   }, [
     evalStatus,
     refreshLog,
@@ -144,6 +145,7 @@ export const useSamplesTabConfig = (
     streamSamples,
     totalSampleCount,
     showColumnSelector,
+    columnButtonEl,
     handleToggleColumnSelector,
   ]);
 };
@@ -158,7 +160,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   scrollRef,
   showColumnSelector,
   setShowColumnSelector,
-  columnButtonRef,
+  columnButtonEl,
 }) => {
   const sampleSummaries = useFilteredSamples();
   const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
@@ -171,7 +173,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         ? undefined
         : typeof limit === "number"
           ? limit
-          : (limit[1] as number) - (limit[0] as number);
+          : limit[1] - limit[0];
     return (
       (limitCount || selectedLogDetails?.eval.dataset.samples || 0) *
       (selectedLogDetails?.eval.config.epochs || 0)
@@ -359,7 +361,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         input: inputString(sample.input).join(" "),
         target: Array.isArray(sample.target)
           ? sample.target.join(", ")
-          : (sample.target as string | undefined),
+          : sample.target,
         error: sample.error,
         limit: sample.limit,
         retries: sample.retries,
@@ -402,7 +404,9 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const setFilter = useStore((state) => state.logActions.setFilter);
   const currentFilter = useStore((state) => state.log.filter);
   const currentFilterRef = useRef(currentFilter);
-  currentFilterRef.current = currentFilter;
+  useEffect(() => {
+    currentFilterRef.current = currentFilter;
+  }, [currentFilter]);
 
   /** Parse `text` and project it to the FilterModel the column UI
    *  should be holding — `{}` for empty or non-round-trippable text. */
@@ -438,7 +442,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const api = sampleListHandle.current?.api;
     if (!api) return;
     const desired = filterModelFromText(currentFilter);
-    const current: FilterModel = (api.getFilterModel() ?? {}) as FilterModel;
+    const current: FilterModel = api.getFilterModel() ?? {};
     // Preserve current model entries that the synthesizer would have
     // skipped — they live only in the column UI and must not be wiped
     // by a text-driven update. Entries the user can express in text
@@ -469,7 +473,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     const state = cols.flatMap((c) => {
       const colId = c.getColId();
       if (!colId.startsWith("score_")) return [];
-      const w = c.getColDef().initialWidth as number | undefined;
+      const w = c.getColDef().initialWidth;
       return w === undefined ? [] : [{ colId, width: w, flex: null }];
     });
     if (state.length > 0) api.applyColumnState({ state });
@@ -549,7 +553,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           columns={allColumns}
           visibility={visibilityForGrid}
           onVisibilityChange={handleVisibilityChange}
-          positionEl={columnButtonRef.current}
+          positionEl={columnButtonEl}
           filteredFields={filteredFields}
           scoresHeading="Scores"
           onResetToDefault={resetColumns}

@@ -80,17 +80,18 @@ export const LogView: FC = () => {
     json: jsonTabConfig,
   };
 
+  const tabKeys = Object.keys(tabs).join(",");
   const scrollRefs = useMemo(() => {
     const refs: RefObject<HTMLElement | null>[] = [];
     for (const key of Object.keys(tabs)) {
       const ref = tabs[key].scrollRef;
-      if (ref) refs.push(ref as RefObject<HTMLElement | null>);
+      if (ref) refs.push(ref);
     }
     return refs;
     // The set of tab refs is stable within a session — recompute only when
     // the tab keys change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Object.keys(tabs).join(",")]);
+  }, [tabKeys]);
 
   const { hidden: titleCollapsed } = useScrollDirection(scrollRefs, {
     stayHiddenOnUpScroll: true,

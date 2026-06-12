@@ -9,12 +9,14 @@ const resolveStorage = (): ClientStorage | undefined => {
   const vscodeApi = getVscodeApi();
   if (vscodeApi) {
     return {
-      getItem: (_name: string) => {
+      getItem: (
+        _name: string
+      ): {
+        state: PersistedState;
+        version: number;
+      } => {
         const state = vscodeApi.getState() as string;
-        const deserialized = JSON5.parse(state) as {
-          state: PersistedState;
-          version: number;
-        };
+        const deserialized = JSON5.parse(state);
         return deserialized;
       },
       setItem: (_name: string, value: unknown) => {
