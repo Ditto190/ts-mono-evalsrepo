@@ -13,6 +13,8 @@ export const sampleLimitMessage = (type: SampleLimitEvent["type"]): string => {
       return "Sample terminated due to time limit.";
     case "token":
       return "Sample terminated due to token limit.";
+    case "turn":
+      return "Sample terminated due to turn limit.";
     case "cost":
       return "Sample terminated due to cost limit.";
     default:

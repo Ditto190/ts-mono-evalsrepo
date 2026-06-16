@@ -31,6 +31,7 @@ export const TranscriptIcons = {
     custom: "bi bi-exclamation-triangle",
     operator: "bi bi-person-workspace",
     tokens: "bi bi-list",
+    turns: "bi bi-arrow-repeat",
     time: "bi bi-clock",
     execution: "bi bi-stopwatch",
     cost: "bi bi-currency-dollar",

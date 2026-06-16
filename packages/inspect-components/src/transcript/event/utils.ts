@@ -8,6 +8,7 @@ const sampleLimitTitles: Record<string, string> = {
   time: "Time Limit Exceeded",
   message: "Message Limit Exceeded",
   token: "Token Limit Exceeded",
+  turn: "Turn Limit Exceeded",
   operator: "Operator Canceled",
   working: "Execution Time Limit Exceeded",
   cost: "Cost Limit Exceeded",

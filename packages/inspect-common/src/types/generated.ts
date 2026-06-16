@@ -1400,6 +1400,8 @@ export interface components {
             time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
+            /** Turn Limit */
+            turn_limit?: number | null;
             /** Working Limit */
             working_limit?: number | null;
         };
@@ -1670,7 +1672,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "context" | "time" | "working" | "message" | "token" | "cost" | "operator" | "custom";
+            type: "context" | "time" | "working" | "message" | "token" | "turn" | "cost" | "operator" | "custom";
         };
         /**
          * EvalSampleReductions
@@ -2935,7 +2937,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "message" | "time" | "working" | "token" | "cost" | "operator" | "custom";
+            type: "message" | "time" | "working" | "token" | "turn" | "cost" | "operator" | "custom";
             /** Uuid */
             uuid?: string | null;
             /** Working Start */

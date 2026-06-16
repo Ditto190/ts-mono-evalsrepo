@@ -31,6 +31,8 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
         return "Message Limit Exceeded";
       case "token":
         return "Token Limit Exceeded";
+      case "turn":
+        return "Turn Limit Exceeded";
       case "operator":
         return "Operator Cancelled";
       case "working":
@@ -50,6 +52,8 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
         return TranscriptIcons.limits.messages;
       case "token":
         return TranscriptIcons.limits.tokens;
+      case "turn":
+        return TranscriptIcons.limits.turns;
       case "operator":
         return TranscriptIcons.limits.operator;
       case "working":
