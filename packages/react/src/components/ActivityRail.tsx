@@ -1,35 +1,32 @@
 import clsx from "clsx";
-import { FC } from "react";
 
 import styles from "./ActivityRail.module.css";
 
-export type ActivityRailItemId = "search" | "scans";
-
-export interface ActivityRailItem {
-  id: ActivityRailItemId;
+export interface ActivityRailItem<Id extends string = string> {
+  id: Id;
   label: string;
   icon: string;
   disabled?: boolean;
   title?: string;
 }
 
-export interface ActivityRailProps {
-  items: ActivityRailItem[];
-  active: ActivityRailItemId | null;
-  onSelect: (id: ActivityRailItemId) => void;
+export interface ActivityRailProps<Id extends string = string> {
+  items: ActivityRailItem<Id>[];
+  active: Id | null;
+  onSelect: (id: Id) => void;
   className?: string;
 }
 
 /**
- * Vertical activity bar (VS Code style) hosting the sample-view sidebar
- * entries. Always visible; the active item's panel opens to its left.
+ * Vertical activity bar (VS Code style) hosting sidebar entries. Always
+ * visible; the active item's panel opens to its left.
  */
-export const ActivityRail: FC<ActivityRailProps> = ({
+export const ActivityRail = <Id extends string = string>({
   items,
   active,
   onSelect,
   className,
-}) => (
+}: ActivityRailProps<Id>) => (
   <div
     className={clsx(styles.rail, className)}
     role="tablist"
