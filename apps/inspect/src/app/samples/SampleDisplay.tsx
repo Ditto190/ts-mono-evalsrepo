@@ -57,7 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { getApi } from "../../app_config";
+import { getApi, useLogDir } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -70,6 +70,7 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { useChunkedMessages } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -100,6 +101,7 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
 import { mergeTranscriptLabelContext } from "./transcript/search/mergeTranscriptLabelContext";
@@ -147,12 +149,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
   // A sample with no events has no transcript to show; default to the
-  // messages tab when its body settles.
+  // messages tab when its body settles. (Chunked samples carry an empty
+  // shell `events` array but window their transcript separately.)
+  const isChunked = sampleData.chunked !== undefined;
   useEffect(() => {
-    if (sample !== undefined && sample.events.length < 1) {
+    if (sample !== undefined && sample.events.length < 1 && !isChunked) {
       setSelectedTab(kSampleMessagesTabId);
     }
-  }, [sample, setSelectedTab]);
+  }, [sample, isChunked, setSelectedTab]);
 
   // Per-tab scroll positions persist while tabbing within a sample (each tab's
   // VirtualList snapshot is keyed by sample id). Clear them when leaving this
@@ -222,6 +226,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
+
+  // Chunked samples carry an empty shell `messages` array; the Messages tab
+  // hydrates the final conversation from message_refs instead — gated on the
+  // tab actually being open (full hydration can be ~135MB on compaction
+  // monsters; never pay it at sample open). Once hydrated it stays cached.
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+  const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
+  const chunkedMessages = useChunkedMessages(
+    logDir,
+    isChunked && messagesTabOpen ? selectedSampleHandle : undefined,
+    sampleData.chunked
+  );
+  const effectiveMessages = isChunked
+    ? (chunkedMessages.data ?? [])
+    : sampleMessages;
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -299,9 +321,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
   const printLogPath = urlLogPath || selectedLogFile;
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
@@ -793,7 +812,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 positionEl={filterButtonEl}
               />
 
-              {!sampleEvents || sampleEvents.length === 0 ? (
+              {sampleData.chunked ? (
+                <div className={styles.tabContent}>
+                  <ChunkedTranscriptPanel
+                    id={`${baseId}-transcript-display-${id}`}
+                    // sample identity in the key: anchor/selection refs must
+                    // not survive a switch between two chunked samples
+                    key={`${baseId}-chunked-transcript-${id}-${sampleData.chunked.shell.id}-${sampleData.chunked.shell.epoch}`}
+                    scrollRef={scrollRef}
+                    offsetTop={stickyOffsetTop}
+                    chunked={sampleData.chunked}
+                  />
+                </div>
+              ) : !sampleEvents || sampleEvents.length === 0 ? (
                 sampleData.status === "loading" ? null : (
                   <NoContentsPanel
                     text={
@@ -848,7 +879,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <ChatViewVirtualList
                   key={`${baseId}-chat-${id}`}
                   id={`${baseId}-chat-${id}`}
-                  messages={sampleMessages}
+                  messages={effectiveMessages}
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
                   display={chatDisplay}
