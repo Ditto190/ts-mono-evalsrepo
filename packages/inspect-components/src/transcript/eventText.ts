@@ -1,6 +1,7 @@
 import type { Content } from "@tsmono/inspect-common/types";
-import { isRecord } from "@tsmono/util";
+import { isRecord, toTitleCase } from "@tsmono/util";
 
+import { eventTitle } from "./event/utils";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -428,7 +429,7 @@ export const eventSearchText = (node: EventNode): string[] => {
 /**
  * Converts an array of events to a human-readable text transcript.
  */
-export const eventsToStr = (events: EventType[]): string => {
+export const eventsToStr = (events: readonly EventType[]): string => {
   return events
     .map((event) => {
       const fields = extractEventFields(event);
@@ -440,6 +441,95 @@ export const eventsToStr = (events: EventType[]): string => {
     })
     .filter((s): s is string => s !== null)
     .join("\n\n");
+};
+
+/**
+ * Converts an array of events to a Markdown transcript suitable for reports
+ * and other review artifacts. Sections use the viewer's event titles. Prose
+ * fields (model output, messages, explanations) keep their Markdown, quoted
+ * when multi-line; everything else — tool arguments and results, tracebacks,
+ * JSON — is fenced or put in inline code so it renders verbatim.
+ */
+export const eventsToMarkdown = (events: readonly EventType[]): string => {
+  return events
+    .map((event) => {
+      const fields = extractEventFields(event);
+      // Tool titles interpolate raw arguments, which may span lines.
+      const title = (eventTitle(event) || titleCase(event.event)).replace(
+        /\s+/g,
+        " "
+      );
+      // A selected event with nothing to extract still gets its heading so the
+      // export never silently shortens (or empties) the selection.
+      if (fields.length === 0) return `## ${title}`;
+      const body = fields
+        .map(([key, value]) => {
+          const label = titleCase(key);
+          const prose = kProseFields.has(key);
+          if (value.includes("\n")) {
+            return `**${label}**\n\n${prose ? quoted(value) : fenced(value)}`;
+          }
+          if (!prose && looksLikeJson(value)) {
+            return `**${label}**\n\n${fenced(value)}`;
+          }
+          const text = kCodeLikeFields.has(key) ? inlineCode(value) : value;
+          return `**${label}:** ${text}`;
+        })
+        .join("\n\n");
+      return `## ${title}\n\n${body}`;
+    })
+    .join("\n\n---\n\n");
+};
+
+const titleCase = (value: string): string =>
+  toTitleCase(value.replace(/_/g, " "));
+
+const kProseFields: ReadonlySet<string> = new Set([
+  "answer",
+  "explanation",
+  "message",
+  "output",
+  "title",
+]);
+
+const quoted = (value: string): string =>
+  value
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+
+const kCodeLikeFields: ReadonlySet<string> = new Set([
+  "arguments",
+  "cmd",
+  "file",
+  "filename",
+  "function",
+  "path",
+]);
+
+const longestBacktickRun = (value: string): number => {
+  let longest = 0;
+  for (const run of value.matchAll(/`+/g)) {
+    longest = Math.max(longest, run[0].length);
+  }
+  return longest;
+};
+
+// Delimiter longer than any backtick run inside; a space pads a value that
+// starts or ends with a backtick (CommonMark strips one space each side).
+const inlineCode = (value: string): string => {
+  const ticks = "`".repeat(longestBacktickRun(value) + 1);
+  const pad = value.startsWith("`") || value.endsWith("`") ? " " : "";
+  return `${ticks}${pad}${value}${pad}${ticks}`;
+};
+
+const looksLikeJson = (value: string): boolean =>
+  /^\s*[[{]/.test(value) && /[\]}]\s*$/.test(value);
+
+// The fence must be longer than any backtick run inside the value.
+const fenced = (value: string): string => {
+  const fence = "`".repeat(Math.max(2, longestBacktickRun(value)) + 1);
+  return `${fence}\n${value}\n${fence}`;
 };
 
 /**
