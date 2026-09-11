@@ -28,6 +28,7 @@ import type {
   ModelFallback,
   ModelUsage,
   Result,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -180,6 +181,7 @@ export interface EventData {
     | ModelEvent
     | ToolEvent
     | ApprovalEvent
+    | ReviewEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent
